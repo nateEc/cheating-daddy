@@ -587,7 +587,7 @@ export class CheatingDaddyApp extends LitElement {
                 return;
             }
         } else if (providerMode === 'local') {
-            const success = await cheatingDaddy.initializeLocal(this.selectedProfile);
+            const success = await cheatingDaddy.initializeLocal(this.selectedProfile, this.selectedLanguage);
             if (!success) {
                 const mainView = this.shadowRoot.querySelector('main-view');
                 if (mainView && mainView.triggerApiKeyError) {
@@ -638,9 +638,8 @@ export class CheatingDaddyApp extends LitElement {
         await cheatingDaddy.storage.updatePreference('selectedProfile', profile);
     }
 
-    async handleLanguageChange(language) {
+    handleLanguageChange(language) {
         this.selectedLanguage = language;
-        await cheatingDaddy.storage.updatePreference('selectedLanguage', language);
     }
 
     async handleScreenshotIntervalChange(interval) {

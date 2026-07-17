@@ -230,6 +230,7 @@ export class CustomizeView extends LitElement {
             this.backgroundTransparency = prefs.backgroundTransparency ?? 0.8;
             this.fontSize = prefs.fontSize ?? 20;
             this.audioMode = prefs.audioMode ?? 'speaker_only';
+            this.selectedLanguage = prefs.selectedLanguage ?? 'en-US';
             this.customPrompt = prefs.customPrompt ?? '';
             this.theme = prefs.theme ?? 'dark';
             if (keybinds) {
@@ -335,8 +336,9 @@ export class CustomizeView extends LitElement {
         this.onProfileChange(this.selectedProfile);
     }
 
-    handleLanguageSelect(e) {
+    async handleLanguageSelect(e) {
         this.selectedLanguage = e.target.value;
+        await cheatingDaddy.storage.updatePreference('selectedLanguage', this.selectedLanguage);
         this.onLanguageChange(this.selectedLanguage);
     }
 
