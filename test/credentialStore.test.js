@@ -37,7 +37,12 @@ test('stores empty credentials without requiring an encryption backend', () => {
     const envelope = createCredentialEnvelope({ apiKey: '', groqApiKey: '' }, null, 'darwin');
 
     assert.deepEqual(envelope, { version: 1, encryptedData: null });
-    assert.deepEqual(decryptCredentialEnvelope(envelope, null, 'darwin'), { apiKey: '', groqApiKey: '' });
+    assert.deepEqual(decryptCredentialEnvelope(envelope, null, 'darwin'), {
+        apiKey: '',
+        groqApiKey: '',
+        cloudToken: '',
+        openaiKey: '',
+    });
 });
 
 test('rejects secrets when secure storage is unavailable or insecure', () => {
@@ -47,5 +52,10 @@ test('rejects secrets when secure storage is unavailable or insecure', () => {
 
 test('validates updates and removes unsupported legacy fields', () => {
     assert.throws(() => validateCredentialUpdate({ unexpected: 'secret' }), /Invalid credential field/);
-    assert.deepEqual(normalizeCredentials({ apiKey: 'secret', unexpected: 'ignored' }), { apiKey: 'secret', groqApiKey: '' });
+    assert.deepEqual(normalizeCredentials({ apiKey: 'secret', unexpected: 'ignored' }), {
+        apiKey: 'secret',
+        groqApiKey: '',
+        cloudToken: '',
+        openaiKey: '',
+    });
 });

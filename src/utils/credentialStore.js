@@ -3,6 +3,8 @@ const CREDENTIAL_KEYS = Object.freeze(['apiKey', 'groqApiKey', 'cloudToken', 'op
 const DEFAULT_CREDENTIALS = Object.freeze({
     apiKey: '',
     groqApiKey: '',
+    cloudToken: '',
+    openaiKey: '',
 });
 
 function normalizeCredentials(credentials) {

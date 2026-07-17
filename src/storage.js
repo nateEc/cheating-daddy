@@ -20,7 +20,9 @@ const DEFAULT_CONFIG = {
 
 const DEFAULT_CREDENTIALS = {
     apiKey: '',
-    groqApiKey: ''
+    groqApiKey: '',
+    cloudToken: '',
+    openaiKey: ''
 };
 
 const DEFAULT_PREFERENCES = {
@@ -213,10 +215,16 @@ function getCredentials() {
 
     const stored = readJsonFile(credentialsPath, null);
     if (stored === null) {
-        throw new Error('Failed to read credential store');
+        console.warn('Failed to read credential store, using empty credentials');
+        return { ...DEFAULT_CREDENTIALS };
     }
     if (isCredentialEnvelope(stored)) {
-        return decryptCredentialEnvelope(stored, getSafeStorage());
+        try {
+            return decryptCredentialEnvelope(stored, getSafeStorage());
+        } catch (error) {
+            console.warn('Failed to decrypt credential store, using empty credentials:', error.message);
+            return { ...DEFAULT_CREDENTIALS };
+        }
     }
 
     // Migrate legacy plaintext credentials after the first successful read.
