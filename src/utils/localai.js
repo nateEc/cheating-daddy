@@ -1,8 +1,6 @@
 const { Ollama } = require('ollama');
-const { getPreferences } = require('../storage');
 const { getSystemPrompt } = require('./prompts');
 const { sendToRenderer, initializeNewSession, saveConversationTurn } = require('./gemini');
-const { toWhisperLanguageCode } = require('./language');
 
 // ── State ──
 
@@ -12,7 +10,6 @@ let whisperPipeline = null;
 let isWhisperLoading = false;
 let localConversationHistory = [];
 let currentSystemPrompt = null;
-let currentTranscriptionLanguage = 'en';
 let isLocalActive = false;
 
 // VAD state
@@ -169,7 +166,7 @@ async function transcribeAudio(pcm16kBuffer) {
         // Whisper expects audio at 16kHz which is what we have
         const result = await whisperPipeline(float32Audio, {
             sampling_rate: 16000,
-            language: currentTranscriptionLanguage,
+            language: 'en',
             task: 'transcribe',
         });
 
@@ -270,14 +267,7 @@ async function sendToOllama(transcription) {
 // ── Public API ──
 
 async function initializeLocalSession(ollamaHost, model, whisperModel, profile, customPrompt) {
-    currentTranscriptionLanguage = toWhisperLanguageCode(getPreferences().selectedLanguage);
-    console.log('[LocalAI] Initializing local session:', {
-        ollamaHost,
-        model,
-        whisperModel,
-        profile,
-        language: currentTranscriptionLanguage,
-    });
+    console.log('[LocalAI] Initializing local session:', { ollamaHost, model, whisperModel, profile });
 
     sendToRenderer('session-initializing', true);
 
