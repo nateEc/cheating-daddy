@@ -1,6 +1,13 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const {
+    createCredentialEnvelope,
+    decryptCredentialEnvelope,
+    isCredentialEnvelope,
+    normalizeCredentials,
+    validateCredentialUpdate,
+} = require('./utils/credentialStore');
 
 const CONFIG_VERSION = 1;
 
@@ -94,13 +101,19 @@ function readJsonFile(filePath, defaultValue) {
 }
 
 // Helper to write JSON file safely
-function writeJsonFile(filePath, data) {
+function writeJsonFile(filePath, data, options = {}) {
     try {
         const dir = path.dirname(filePath);
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
         }
-        fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+        fs.writeFileSync(filePath, JSON.stringify(data, null, 2), {
+            encoding: 'utf8',
+            mode: options.mode,
+        });
+        if (options.mode !== undefined) {
+            fs.chmodSync(filePath, options.mode);
+        }
         return true;
     } catch (error) {
         console.error(`Error writing ${filePath}:`, error.message);
@@ -140,7 +153,7 @@ function resetConfigDir() {
 
     // Initialize with defaults
     writeJsonFile(getConfigPath(), DEFAULT_CONFIG);
-    writeJsonFile(getCredentialsPath(), DEFAULT_CREDENTIALS);
+    writeCredentialsFile(DEFAULT_CREDENTIALS);
     writeJsonFile(getPreferencesPath(), DEFAULT_PREFERENCES);
 
     console.log('Config directory initialized with defaults');
@@ -179,14 +192,48 @@ function updateConfig(key, value) {
 
 // ============ CREDENTIALS ============
 
+function getSafeStorage() {
+    return require('electron').safeStorage;
+}
+
+function writeCredentialsFile(credentials) {
+    const envelope = createCredentialEnvelope(credentials, getSafeStorage());
+    if (!writeJsonFile(getCredentialsPath(), envelope, { mode: 0o600 })) {
+        throw new Error('Failed to write credential store');
+    }
+    return true;
+}
+
 function getCredentials() {
-    return readJsonFile(getCredentialsPath(), DEFAULT_CREDENTIALS);
+    const credentialsPath = getCredentialsPath();
+    if (!fs.existsSync(credentialsPath)) {
+        writeCredentialsFile(DEFAULT_CREDENTIALS);
+        return { ...DEFAULT_CREDENTIALS };
+    }
+
+    const stored = readJsonFile(credentialsPath, null);
+    if (stored === null) {
+        throw new Error('Failed to read credential store');
+    }
+    if (isCredentialEnvelope(stored)) {
+        return decryptCredentialEnvelope(stored, getSafeStorage());
+    }
+
+    // Migrate legacy plaintext credentials after the first successful read.
+    const credentials = normalizeCredentials(stored);
+    try {
+        writeCredentialsFile(credentials);
+    } catch (error) {
+        console.warn('Could not migrate plaintext credentials to secure storage:', error.message);
+    }
+    return credentials;
 }
 
 function setCredentials(credentials) {
+    validateCredentialUpdate(credentials);
     const current = getCredentials();
-    const updated = { ...current, ...credentials };
-    return writeJsonFile(getCredentialsPath(), updated);
+    const updated = normalizeCredentials({ ...current, ...credentials });
+    return writeCredentialsFile(updated);
 }
 
 function getApiKey() {
