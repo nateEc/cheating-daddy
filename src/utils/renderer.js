@@ -18,6 +18,7 @@ let currentImageQuality = 'medium'; // Store current image quality for manual sc
 
 const isLinux = process.platform === 'linux';
 const isMacOS = process.platform === 'darwin';
+const isWindows = process.platform === 'win32';
 
 // ============ STORAGE API ============
 // Wrapper for IPC-based storage access
@@ -158,9 +159,10 @@ async function initializeLocal(profile = 'interview') {
     const ollamaHost = prefs.ollamaHost || 'http://127.0.0.1:11434';
     const ollamaModel = prefs.ollamaModel || 'llama3.1';
     const whisperModel = prefs.whisperModel || 'Xenova/whisper-small';
+    const whisperDevice = prefs.whisperDevice || 'cpu';
     const customPrompt = prefs.customPrompt || '';
 
-    const success = await ipcRenderer.invoke('initialize-local', ollamaHost, ollamaModel, whisperModel, profile, customPrompt);
+    const success = await ipcRenderer.invoke('initialize-local', ollamaHost, ollamaModel, whisperModel, profile, customPrompt, whisperDevice);
     if (success) {
         cheatingDaddy.setStatus('Local AI Live');
         return true;
@@ -1046,6 +1048,7 @@ const cheatingDaddy = {
     // Platform detection
     isLinux: isLinux,
     isMacOS: isMacOS,
+    isWindows: isWindows,
 };
 
 // Make it globally available

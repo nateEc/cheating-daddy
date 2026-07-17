@@ -1,13 +1,18 @@
 const { Ollama } = require('ollama');
+const fs = require('fs');
+const path = require('path');
 const { getSystemPrompt } = require('./prompts');
 const { sendToRenderer, initializeNewSession, saveConversationTurn } = require('./gemini');
+const { getWhisperModelCachePath, loadWhisperPipelineWithRecovery, normalizeWhisperDevice } = require('./whisperRuntime');
 
 // ── State ──
 
 let ollamaClient = null;
 let ollamaModel = null;
 let whisperPipeline = null;
-let isWhisperLoading = false;
+let whisperPipelineModel = null;
+let whisperPipelineDevice = null;
+let whisperLoadPromise = null;
 let localConversationHistory = [];
 let currentSystemPrompt = null;
 let isLocalActive = false;
@@ -112,37 +117,70 @@ function processVAD(pcm16kBuffer) {
 
 // ── Whisper Transcription ──
 
-async function loadWhisperPipeline(modelName) {
-    if (whisperPipeline) return whisperPipeline;
-    if (isWhisperLoading) return null;
+async function loadWhisperPipeline(modelName, requestedDevice = 'cpu') {
+    const device = normalizeWhisperDevice(requestedDevice);
+    if (whisperPipeline && whisperPipelineModel === modelName && whisperPipelineDevice === device) {
+        return whisperPipeline;
+    }
+    if (whisperLoadPromise) {
+        await whisperLoadPromise;
+        return loadWhisperPipeline(modelName, device);
+    }
 
-    isWhisperLoading = true;
     console.log('[LocalAI] Loading Whisper model:', modelName);
     sendToRenderer('whisper-downloading', true);
     sendToRenderer('update-status', 'Loading Whisper model (first time may take a while)...');
 
-    try {
+    whisperLoadPromise = (async () => {
+        if (whisperPipeline) {
+            try {
+                if (typeof whisperPipeline.dispose === 'function') {
+                    await whisperPipeline.dispose();
+                }
+            } catch (error) {
+                console.warn('[LocalAI] Failed to dispose the previous Whisper pipeline:', error.message);
+            }
+            whisperPipeline = null;
+            whisperPipelineModel = null;
+            whisperPipelineDevice = null;
+        }
+
         // Dynamic import for ESM module
         const { pipeline, env } = await import('@huggingface/transformers');
         // Cache models outside the asar archive so ONNX runtime can load them
         const { app } = require('electron');
-        const path = require('path');
         env.cacheDir = path.join(app.getPath('userData'), 'whisper-models');
-        whisperPipeline = await pipeline('automatic-speech-recognition', modelName, {
-            dtype: 'q8',
-            device: 'auto',
-        });
+        const modelCachePath = getWhisperModelCachePath(env.cacheDir, modelName);
+        const createPipeline = () =>
+            pipeline('automatic-speech-recognition', modelName, {
+                dtype: 'q8',
+                device,
+            });
+
+        whisperPipeline = await loadWhisperPipelineWithRecovery(
+            createPipeline,
+            () => fs.promises.rm(modelCachePath, { recursive: true, force: true }),
+            () => {
+                console.warn('[LocalAI] Corrupt Whisper cache detected, clearing:', modelCachePath);
+                sendToRenderer('update-status', 'Whisper model cache was corrupt. Downloading a fresh copy...');
+            }
+        );
+        whisperPipelineModel = modelName;
+        whisperPipelineDevice = device;
         console.log('[LocalAI] Whisper model loaded successfully');
-        sendToRenderer('whisper-downloading', false);
-        isWhisperLoading = false;
         return whisperPipeline;
-    } catch (error) {
-        console.error('[LocalAI] Failed to load Whisper model:', error);
-        sendToRenderer('whisper-downloading', false);
-        sendToRenderer('update-status', 'Failed to load Whisper model: ' + error.message);
-        isWhisperLoading = false;
-        return null;
-    }
+    })()
+        .catch(error => {
+            console.error('[LocalAI] Failed to load Whisper model:', error);
+            sendToRenderer('update-status', 'Failed to load Whisper model: ' + error.message);
+            return null;
+        })
+        .finally(() => {
+            sendToRenderer('whisper-downloading', false);
+            whisperLoadPromise = null;
+        });
+
+    return whisperLoadPromise;
 }
 
 function pcm16ToFloat32(pcm16Buffer) {
@@ -266,8 +304,8 @@ async function sendToOllama(transcription) {
 
 // ── Public API ──
 
-async function initializeLocalSession(ollamaHost, model, whisperModel, profile, customPrompt) {
-    console.log('[LocalAI] Initializing local session:', { ollamaHost, model, whisperModel, profile });
+async function initializeLocalSession(ollamaHost, model, whisperModel, profile, customPrompt, whisperDevice = 'cpu') {
+    console.log('[LocalAI] Initializing local session:', { ollamaHost, model, whisperModel, whisperDevice, profile });
 
     sendToRenderer('session-initializing', true);
 
@@ -291,7 +329,7 @@ async function initializeLocalSession(ollamaHost, model, whisperModel, profile, 
         }
 
         // Load Whisper model
-        const pipeline = await loadWhisperPipeline(whisperModel);
+        const pipeline = await loadWhisperPipeline(whisperModel, whisperDevice);
         if (!pipeline) {
             sendToRenderer('session-initializing', false);
             return false;

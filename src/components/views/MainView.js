@@ -498,6 +498,7 @@ export class MainView extends LitElement {
         _ollamaHost: { state: true },
         _ollamaModel: { state: true },
         _whisperModel: { state: true },
+        _whisperDevice: { state: true },
         _showLocalHelp: { state: true },
     };
 
@@ -521,6 +522,7 @@ export class MainView extends LitElement {
         this._ollamaHost = 'http://127.0.0.1:11434';
         this._ollamaModel = 'llama3.1';
         this._whisperModel = 'Xenova/whisper-small';
+        this._whisperDevice = 'cpu';
 
         this._animId = null;
         this._time = 0;
@@ -555,6 +557,7 @@ export class MainView extends LitElement {
             this._ollamaHost = prefs.ollamaHost || 'http://127.0.0.1:11434';
             this._ollamaModel = prefs.ollamaModel || 'llama3.1';
             this._whisperModel = prefs.whisperModel || 'Xenova/whisper-small';
+            this._whisperDevice = prefs.whisperDevice === 'dml' && cheatingDaddy.isWindows ? 'dml' : 'cpu';
 
             this.requestUpdate();
         } catch (e) {
@@ -743,6 +746,12 @@ export class MainView extends LitElement {
         this.requestUpdate();
     }
 
+    async _saveWhisperDevice(val) {
+        this._whisperDevice = val;
+        await cheatingDaddy.storage.updatePreference('whisperDevice', val);
+        this.requestUpdate();
+    }
+
     _handleProfileChange(e) {
         this.onProfileChange(e.target.value);
     }
@@ -900,6 +909,19 @@ export class MainView extends LitElement {
                 </select>
                 <div class="form-hint">${this.whisperDownloading ? 'Downloading model...' : 'Downloaded automatically on first use'}</div>
             </div>
+
+            ${cheatingDaddy.isWindows
+                ? html`
+                      <div class="form-group">
+                          <label class="form-label">Whisper Device</label>
+                          <select .value=${this._whisperDevice} @change=${e => this._saveWhisperDevice(e.target.value)}>
+                              <option value="cpu">CPU (stable, recommended)</option>
+                              <option value="dml">DirectML GPU (experimental)</option>
+                          </select>
+                          <div class="form-hint">DirectML can be faster but may be unstable on multi-GPU systems</div>
+                      </div>
+                  `
+                : ''}
 
             ${this._renderStartButton()}
             ${this._renderDivider()}
