@@ -866,6 +866,11 @@ function setupGeminiIpcHandlers(geminiSessionRef) {
     });
 
     ipcMain.handle('initialize-local', async (event, ollamaHost, ollamaModel, whisperModel, profile, customPrompt, language = 'en-US') => {
+        const requiredValues = [ollamaHost, ollamaModel, whisperModel, profile, customPrompt, language];
+        if (requiredValues.some(value => typeof value !== 'string') || [ollamaHost, ollamaModel, whisperModel, profile].some(value => !value.trim())) {
+            return false;
+        }
+
         currentProviderMode = 'local';
         const success = await getLocalAi().initializeLocalSession(ollamaHost, ollamaModel, whisperModel, profile, customPrompt, language);
         if (!success) {
