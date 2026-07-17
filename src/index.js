@@ -2,7 +2,7 @@ if (require('electron-squirrel-startup')) {
     process.exit(0);
 }
 
-const { app, BrowserWindow, shell, ipcMain } = require('electron');
+const { app, BrowserWindow, shell, ipcMain, screen } = require('electron');
 const { createWindow, updateGlobalShortcuts } = require('./utils/window');
 const { setupGeminiIpcHandlers, stopMacOSAudioCapture, sendToRenderer } = require('./utils/gemini');
 const storage = require('./storage');
@@ -261,6 +261,24 @@ function setupStorageIpcHandlers() {
 function setupGeneralIpcHandlers() {
     ipcMain.handle('get-app-version', async () => {
         return app.getVersion();
+    });
+
+    ipcMain.handle('get-capture-displays', async () => {
+        try {
+            const primaryDisplay = screen.getPrimaryDisplay();
+            const displays = screen.getAllDisplays().map((display, index) => ({
+                id: String(display.id),
+                label: display.label || `Display ${index + 1}`,
+                width: display.size.width,
+                height: display.size.height,
+                scaleFactor: display.scaleFactor,
+                isPrimary: display.id === primaryDisplay.id,
+            }));
+            return { success: true, data: displays };
+        } catch (error) {
+            console.error('Error getting capture displays:', error);
+            return { success: false, error: error.message };
+        }
     });
 
     ipcMain.handle('quit-application', async event => {

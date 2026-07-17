@@ -7,6 +7,18 @@ let mouseEventsIgnored = false;
 const DEFAULT_MAIN_WINDOW_SIZE = { width: 1100, height: 800 };
 const MIN_WINDOW_SIZE = { width: 700, height: 320 };
 
+function selectCaptureSource(sources, preferredDisplayId, primaryDisplayId) {
+    const preferredId = String(preferredDisplayId || '');
+    const primaryId = String(primaryDisplayId || '');
+
+    return (
+        sources.find(source => preferredId && String(source.display_id) === preferredId) ||
+        sources.find(source => primaryId && String(source.display_id) === primaryId) ||
+        sources[0] ||
+        null
+    );
+}
+
 function createWindow(sendToRenderer, geminiSessionRef) {
     let windowWidth = DEFAULT_MAIN_WINDOW_SIZE.width;
     let windowHeight = DEFAULT_MAIN_WINDOW_SIZE.height;
@@ -33,14 +45,27 @@ function createWindow(sendToRenderer, geminiSessionRef) {
     });
 
     const { session, desktopCapturer } = require('electron');
-    session.defaultSession.setDisplayMediaRequestHandler(
-        (request, callback) => {
-            desktopCapturer.getSources({ types: ['screen'] }).then(sources => {
-                callback({ video: sources[0], audio: 'loopback' });
+    session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
+        desktopCapturer
+            .getSources({ types: ['screen'] })
+            .then(sources => {
+                const preferences = storage.getPreferences();
+                const primaryDisplayId = screen.getPrimaryDisplay().id;
+                const source = selectCaptureSource(sources, preferences.captureDisplayId, primaryDisplayId);
+
+                if (!source) {
+                    console.error('No display capture sources are available');
+                    callback({});
+                    return;
+                }
+
+                callback({ video: source, audio: 'loopback' });
+            })
+            .catch(error => {
+                console.error('Failed to select a display capture source:', error);
+                callback({});
             });
-        },
-        { useSystemPicker: true }
-    );
+    });
 
     mainWindow.setContentProtection(true);
     mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
@@ -331,12 +356,12 @@ function setupWindowIpcHandlers(mainWindow, sendToRenderer, geminiSessionRef) {
             return { success: false, error: error.message };
         }
     });
-
 }
 
 module.exports = {
     createWindow,
     getDefaultKeybinds,
+    selectCaptureSource,
     updateGlobalShortcuts,
     setupWindowIpcHandlers,
 };
