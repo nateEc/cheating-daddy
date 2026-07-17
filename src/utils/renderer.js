@@ -159,7 +159,7 @@ async function initializeLocal(profile = 'interview') {
     const ollamaHost = prefs.ollamaHost || 'http://127.0.0.1:11434';
     const ollamaModel = prefs.ollamaModel || 'llama3.1';
     const whisperModel = prefs.whisperModel || 'Xenova/whisper-small';
-    const whisperDevice = prefs.whisperDevice || 'cpu';
+    const whisperDevice = prefs.whisperDevice === 'dml' && isWindows ? 'dml' : 'cpu';
     const customPrompt = prefs.customPrompt || '';
 
     const success = await ipcRenderer.invoke('initialize-local', ollamaHost, ollamaModel, whisperModel, profile, customPrompt, whisperDevice);

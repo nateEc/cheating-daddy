@@ -866,8 +866,14 @@ function setupGeminiIpcHandlers(geminiSessionRef) {
     });
 
     ipcMain.handle('initialize-local', async (event, ollamaHost, ollamaModel, whisperModel, profile, customPrompt, whisperDevice = 'cpu') => {
+        const requiredValues = [ollamaHost, ollamaModel, whisperModel, profile, customPrompt];
+        if (requiredValues.some(value => typeof value !== 'string') || [ollamaHost, ollamaModel, whisperModel, profile].some(value => !value.trim())) {
+            return false;
+        }
+        const sanitizedDevice = whisperDevice === 'dml' && process.platform === 'win32' ? 'dml' : 'cpu';
+
         currentProviderMode = 'local';
-        const success = await getLocalAi().initializeLocalSession(ollamaHost, ollamaModel, whisperModel, profile, customPrompt, whisperDevice);
+        const success = await getLocalAi().initializeLocalSession(ollamaHost, ollamaModel, whisperModel, profile, customPrompt, sanitizedDevice);
         if (!success) {
             currentProviderMode = 'byok';
         }

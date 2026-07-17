@@ -123,7 +123,10 @@ async function loadWhisperPipeline(modelName, requestedDevice = 'cpu') {
         return whisperPipeline;
     }
     if (whisperLoadPromise) {
-        await whisperLoadPromise;
+        const loadedPipeline = await whisperLoadPromise;
+        if (!loadedPipeline) {
+            return null;
+        }
         return loadWhisperPipeline(modelName, device);
     }
 
@@ -139,6 +142,7 @@ async function loadWhisperPipeline(modelName, requestedDevice = 'cpu') {
                 }
             } catch (error) {
                 console.warn('[LocalAI] Failed to dispose the previous Whisper pipeline:', error.message);
+                throw error;
             }
             whisperPipeline = null;
             whisperPipelineModel = null;

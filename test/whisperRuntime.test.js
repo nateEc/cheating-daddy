@@ -65,3 +65,18 @@ test('does not clear or retry for unrelated failures', async () => {
     );
     assert.equal(clearCount, 0);
 });
+
+test('stops after one retry when the fresh model also fails', async () => {
+    let loadCount = 0;
+    await assert.rejects(
+        loadWhisperPipelineWithRecovery(
+            async () => {
+                loadCount += 1;
+                throw new Error('Protobuf parsing failed');
+            },
+            async () => {}
+        ),
+        /Protobuf parsing failed/
+    );
+    assert.equal(loadCount, 2);
+});
