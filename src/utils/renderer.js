@@ -153,14 +153,14 @@ async function initializeGemini(profile = 'interview', language = 'en-US') {
     }
 }
 
-async function initializeLocal(profile = 'interview', language = 'en-US') {
+async function initializeLocal(profile = 'interview') {
     const prefs = await storage.getPreferences();
     const ollamaHost = prefs.ollamaHost || 'http://127.0.0.1:11434';
     const ollamaModel = prefs.ollamaModel || 'llama3.1';
     const whisperModel = prefs.whisperModel || 'Xenova/whisper-small';
     const customPrompt = prefs.customPrompt || '';
 
-    const success = await ipcRenderer.invoke('initialize-local', ollamaHost, ollamaModel, whisperModel, profile, customPrompt, language);
+    const success = await ipcRenderer.invoke('initialize-local', ollamaHost, ollamaModel, whisperModel, profile, customPrompt);
     if (success) {
         cheatingDaddy.setStatus('Local AI Live');
         return true;

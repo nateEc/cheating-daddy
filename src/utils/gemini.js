@@ -865,14 +865,9 @@ function setupGeminiIpcHandlers(geminiSessionRef) {
         return false;
     });
 
-    ipcMain.handle('initialize-local', async (event, ollamaHost, ollamaModel, whisperModel, profile, customPrompt, language = 'en-US') => {
-        const requiredValues = [ollamaHost, ollamaModel, whisperModel, profile, customPrompt, language];
-        if (requiredValues.some(value => typeof value !== 'string') || [ollamaHost, ollamaModel, whisperModel, profile].some(value => !value.trim())) {
-            return false;
-        }
-
+    ipcMain.handle('initialize-local', async (event, ollamaHost, ollamaModel, whisperModel, profile, customPrompt) => {
         currentProviderMode = 'local';
-        const success = await getLocalAi().initializeLocalSession(ollamaHost, ollamaModel, whisperModel, profile, customPrompt, language);
+        const success = await getLocalAi().initializeLocalSession(ollamaHost, ollamaModel, whisperModel, profile, customPrompt);
         if (!success) {
             currentProviderMode = 'byok';
         }

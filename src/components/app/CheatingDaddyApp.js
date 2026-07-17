@@ -587,7 +587,7 @@ export class CheatingDaddyApp extends LitElement {
                 return;
             }
         } else if (providerMode === 'local') {
-            const success = await cheatingDaddy.initializeLocal(this.selectedProfile, this.selectedLanguage);
+            const success = await cheatingDaddy.initializeLocal(this.selectedProfile);
             if (!success) {
                 const mainView = this.shadowRoot.querySelector('main-view');
                 if (mainView && mainView.triggerApiKeyError) {

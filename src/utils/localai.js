@@ -1,4 +1,5 @@
 const { Ollama } = require('ollama');
+const { getPreferences } = require('../storage');
 const { getSystemPrompt } = require('./prompts');
 const { sendToRenderer, initializeNewSession, saveConversationTurn } = require('./gemini');
 const { toWhisperLanguageCode } = require('./language');
@@ -268,8 +269,8 @@ async function sendToOllama(transcription) {
 
 // ── Public API ──
 
-async function initializeLocalSession(ollamaHost, model, whisperModel, profile, customPrompt, language = 'en-US') {
-    currentTranscriptionLanguage = toWhisperLanguageCode(language);
+async function initializeLocalSession(ollamaHost, model, whisperModel, profile, customPrompt) {
+    currentTranscriptionLanguage = toWhisperLanguageCode(getPreferences().selectedLanguage);
     console.log('[LocalAI] Initializing local session:', {
         ollamaHost,
         model,
